@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PyMOL HTML Interface</title>
+    <!-- Include the QWebChannel JavaScript file -->
+    <script src="qwebchannel.js"></script>
+    <script src="sviewer-browser.bundle.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 10px; }
+        .output { border: 1px solid #ccc; padding: 8px; min-height: 50px; background-color: #f9f9f9; margin-top: 10px; white-space: pre-wrap; }
+        button { margin-top: 5px; margin-right: 5px; padding: 5px 10px;}
+        input[type="text"] { width: 300px; padding: 5px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+    <h1>SugarBuilder</h1>
+
+    <x-sugarbuilder reactions-src="https://glyco.me/static/reactions.json" strict style="width: 100%; height: 500px;">GalNAc(a1-O)Ser</x-sugarbuilder>
+
+    <!-- Section to send commands to PyMOL -->
+    <h2>Send Command to PyMOL</h2>
+    <input type="text" id="pymolCommand" value="color red, chain A">
+    <button id="sendCmdButton">Send Command</button>
+    <div id="sendCommandStatus"></div>
+
+    <!-- Section to receive data from PyMOL -->
+    <h2>Data from PyMOL</h2>
+    <button id="getDataButton">Request PyMOL Data</button>
+    <div id="pymolData" class="output">Waiting for data...</div>
+
+    <script>
+        var pyMolBridge = null; // Global variable to hold the Python bridge object
+
+        window.onload = function() {
+            if (typeof qt === 'undefined' || typeof qt.webChannelTransport === 'undefined') {
+                console.error("qt or qt.webChannelTransport is not defined. QWebChannel cannot be initialized.");
+                alert("Error: Cannot connect to PyMOL. Is the Qt WebChannel environment set up correctly?");
+                document.getElementById('pymolData').innerText = "Error: QWebChannel not available.";
+                return;
+            }
+
+            // Initialize the QWebChannel
+            new QWebChannel(qt.webChannelTransport, function (channel) {
+                // Get the bridge object published by Python (named 'pyMolBridge')
+                pyMolBridge = channel.objects.pyMolBridge;
+
+                if (!pyMolBridge) {
+                     console.error("Failed to get pyMolBridge object from channel.");
+                     document.getElementById('pymolData').innerText = "Error: Connection object not found.";
+                     return;
+                }
+
+                console.log("PyMOL Bridge connected:", pyMolBridge);
+                document.getElementById('pymolData').innerText = "Connected to PyMOL.";
+
+                // --- Setup Event Listeners ---
+
+                // Button to send command *to* PyMOL
+                document.getElementById('sendCmdButton').onclick = function() {
+                    if (!pyMolBridge) return;
+                    var cmd = document.getElementById('pymolCommand').value;
+                    console.log("Sending command to PyMOL:", cmd);
+                    document.getElementById('sendCommandStatus').innerText = `Sending: ${cmd}...`;
+                    // Call the Python slot 'executePymolCommand'
+                    pyMolBridge.executePymolCommand(cmd, function(result) {
+                        // This callback receives the return value from Python
+                        console.log("PyMOL execution result:", result);
+                        document.getElementById('sendCommandStatus').innerText = `Result: ${result}`;
+                    });
+                };
+
+                // Button to request data *from* PyMOL
+                document.getElementById('getDataButton').onclick = function() {
+                    if (!pyMolBridge) return;
+                    console.log("Requesting data from PyMOL...");
+                     document.getElementById('pymolData').innerText = "Requesting...";
+                    // Call the Python slot 'getDataFromPyMol'
+                    pyMolBridge.getDataFromPyMol("molecule_names", function(data) {
+                         // This callback receives the data from Python
+                         console.log("Received data from PyMOL:", data);
+                         document.getElementById('pymolData').innerText = `PyMOL says: ${JSON.stringify(data, null, 2)}`;
+                    });
+                };
+
+            });
+        };
+
+        // --- Function callable *from* PyMOL ---
+        function updateFromPyMol(message) {
+            console.log("Message received directly from PyMOL:", message);
+            const dataDiv = document.getElementById('pymolData');
+            dataDiv.innerText = `Direct message from PyMOL: ${JSON.stringify(message, null, 2)}`;
+            // You could add more complex logic here based on the message type/content
+        }
+
+    </script>
+</body>
+</html>
