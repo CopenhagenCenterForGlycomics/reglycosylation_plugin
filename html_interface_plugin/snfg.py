@@ -129,12 +129,12 @@ def get_residue_orientation(selection):
             # We need *any* vector roughly "in the plane" (i.e., perpendicular to Z) to define Y.
             # Let's try using C1->C2 vector projected onto the plane orthogonal to Z.
             print(f"Note: Z-axis for {res_key} is nearly parallel to C1-C5 plane normal. Defining Y axis arbitrarily orthogonal to Z.")
-            
+
             temp_vec = np.array([1.0, 0.0, 0.0]) # Start with global X
             # If Z is aligned with global X, use global Y instead
             if np.abs(np.dot(temp_vec, z_axis)) > 0.99:
                 temp_vec = np.array([0.0, 1.0, 0.0])
-                
+
             # Define Y as orthogonal to Z using the cross product
             y_axis = normalize_vector(np.cross(z_axis, temp_vec))
             # Define X using the right-hand rule (X = Y x Z)
@@ -171,7 +171,7 @@ def get_transformation_matrix(x_axis, y_axis, z_axis):
     x_axis = normalize_vector(x_axis)
     y_axis = normalize_vector(y_axis)
     z_axis = normalize_vector(z_axis)
-    
+
     # Check orthogonality and handedness (optional, for debugging)
     # det = np.linalg.det(np.array([x_axis, y_axis, z_axis]).T)
     # if abs(det - 1.0) > 0.01:
@@ -220,39 +220,42 @@ def cgo_star(x, y, z, r, color, x_axis, y_axis, z_axis):
     outer_points_local = []
     inner_points_local = []
     for i, angle in enumerate(angles):
-        outer_points_local.append([r * math.cos(angle), r * math.sin(angle), 0])
+        outer_points_local.append([r * math.cos(angle), 0, r * math.sin(angle)])
         inner_angle = angle + math.radians(36)
-        inner_points_local.append([r_inner * math.cos(inner_angle), r_inner * math.sin(inner_angle), 0])
+        inner_points_local.append([r_inner * math.cos(inner_angle), 0, r_inner * math.sin(inner_angle)])
 
     # Define top/bottom points along the local Z axis
-    volume_points_local = [[0, 0, 0.3 * r], [0, 0, -0.3 * r]]
+    volume_points_local = [[0, 0.6 * r, 0], [0, -0.6 * r,0]]
 
     # Transform points to global coordinates
     outer_points = transform_vertices(outer_points_local, center, rotation_matrix)
     inner_points = transform_vertices(inner_points_local, center, rotation_matrix)
     volume_points = transform_vertices(volume_points_local, center, rotation_matrix)
-    
+
     # Calculate face normals (approximation - better normals would require knowing triangle vertices)
     # For now, use the transformed Z axis for the flat faces
-    normal_front = transform_normals([[0,0,1]], rotation_matrix)[0]
-    normal_back = transform_normals([[0,0,-1]], rotation_matrix)[0]
+    normal_front = transform_normals([[0,1,0]], rotation_matrix)[0]
+    normal_back = transform_normals([[0,-1,0]], rotation_matrix)[0]
 
     # CGO object generation
     star_cgo.extend([cgo.COLOR, *color])
 
-    # Front face
+    # # Front face
     star_cgo.extend([cgo.BEGIN, cgo.TRIANGLE_FAN, cgo.NORMAL, *normal_front, cgo.VERTEX, *volume_points[0]])
+
     for i in range(5):
         star_cgo.extend([cgo.VERTEX, *outer_points[i], cgo.VERTEX, *inner_points[i]])
     star_cgo.extend([cgo.VERTEX, *outer_points[0]]) # Close the fan
     star_cgo.extend([cgo.END])
 
-    # Back face
+    # # Back face
     star_cgo.extend([cgo.BEGIN, cgo.TRIANGLE_FAN, cgo.NORMAL, *normal_back, cgo.VERTEX, *volume_points[1]])
-    # Add vertices in reverse order for correct winding/normal
+
+    # # Add vertices in reverse order for correct winding/normal
     for i in range(5):
-         idx = (4-i) # index from 4 down to 0
-         star_cgo.extend([cgo.VERTEX, *outer_points[idx], cgo.VERTEX, *inner_points[idx]])
+        idx = i
+        # idx = (4-i) # index from 4 down to 0
+        star_cgo.extend([cgo.VERTEX, *outer_points[idx], cgo.VERTEX, *inner_points[idx]])
     star_cgo.extend([cgo.VERTEX, *outer_points[0]]) # Close the fan
     star_cgo.extend([cgo.END])
 
@@ -452,26 +455,42 @@ def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
     """
     # Define SNFG color and shape scheme for common sugars
     snfg_shapes = {
-        'GLC': (SNFG_BLUE, 'sphere'),
-        'MAN': (SNFG_GREEN, 'sphere'),
+        'GLC': (SNFG_BLUE, 'sphere'), # Glucose
+        'MAL': (SNFG_BLUE, 'sphere'), # Alias
+        'BGC': (SNFG_BLUE, 'sphere'), # Alias
+        'MAN': (SNFG_GREEN, 'sphere'), # Mannose
+        'BMA': (SNFG_GREEN, 'sphere'), # Alias
         'GAL': (SNFG_YELLOW, 'sphere'),
-        'FUC': (SNFG_RED, 'sphere'), # Official SNFG is Red Triangle, using sphere for simplicity
+        'GLA': (SNFG_YELLOW, 'sphere'), # Alias
+        'FUC': (SNFG_RED, 'cone'), # Official SNFG is Red Triangle
+        'FUL': (SNFG_RED, 'cone'), # Alias
         'XYL': (SNFG_ORANGE, 'star'), # Official SNFG is Orange Star
         'XYP': (SNFG_ORANGE, 'star'), # Alias
+        'ARA': (SNFG_GREEN, 'star'), # Arabinose 
+        'AHR': (SNFG_GREEN, 'star'), # Alias
+        'RIB': (SNFG_PINK, 'star'), # Ribose
         'NAG': (SNFG_BLUE, 'cube'), # GlcNAc
         'GLCNAC': (SNFG_BLUE, 'cube'), # Alias
+        '4YS': (SNFG_BLUE, 'cube'), # Alias
+        'SGN': (SNFG_BLUE, 'cube'), # Alias
+        'BGLN': (SNFG_BLUE, 'cube'), # Alias
+        'NDG': (SNFG_BLUE, 'cube'), # Alias
         'NGA': (SNFG_YELLOW, 'cube'), # GalNAc
         'GALNAC': (SNFG_YELLOW, 'cube'), # Alias
         'A2G' : (SNFG_YELLOW, 'cube'), # Alias
         'MANNA': (SNFG_GREEN, 'cube'), # ManNAc
+        # 'SIA': (SNFG_RED, 'diamond'), # Sia
         'NEU5AC': (SNFG_PURPLE, 'diamond'), # Neu5Ac / Sia
         'SIA': (SNFG_PURPLE, 'diamond'), # Alias
         'NEU5GC': (SNFG_LIGHT_BLUE, 'diamond'), # Neu5Gc
+        'NGC': (SNFG_LIGHT_BLUE, 'diamond'), # Alias
         'KDN': (SNFG_GREEN, 'diamond'), # KDN (Usually green diamond)
-        'GLCA': (SNFG_BLUE, 'half_diamond'), # GlcA (Official SNFG is blue half-circle up) - Using diamond
+        'ADA': (SNFG_YELLOW, 'half_diamond'), # GalA
+        'GLCA': (SNFG_BLUE, 'half_diamond'), # GlcA
+        'GCU' : (SNFG_BLUE, 'half_diamond'), # Alias
         'BDP': (SNFG_BLUE, 'half_diamond'), # Alias
         'IDOA': (SNFG_BROWN, 'half_diamond_reverse'), # IdoA (Official SNFG is brown half-circle up) - Using diamond
-        'IDO': (SNFG_BROWN, 'diamond'), # Alias
+        'IDS': (SNFG_BROWN, 'half_diamond_reverse'), # Alias
         'API': (SNFG_PINK, 'diamond'), # Api (Official SNFG is pink cross rectangle) - Using diamond
         # Add other required sugars here following the pattern
     }
@@ -495,7 +514,7 @@ def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
     cgo_objects = []
     debug_cgo_objects = [] # Separate list for debug axes
     shape_scale_factor = 4.0 * scale # Base size factor, adjust as needed
-    
+
     # Define axis properties for debugging
     axis_length = shape_scale_factor * 1.5 # Length relative to shape size
     axis_radius = scale * 0.1          # Radius for cylinder representation
@@ -532,7 +551,7 @@ def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
             else:
                  print(f"Warning: Shape '{shape}' for residue {resn} is not implemented. Using sphere.")
                  cgo_obj = cgo_sphere(x, y, z, 1.8 * scale, color)
-            
+
             if cgo_obj: # Ensure something was generated
                  cgo_objects.extend(cgo_obj)
                  processed_count += 1

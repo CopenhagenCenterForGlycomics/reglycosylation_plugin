@@ -24,7 +24,7 @@ Usage:
    in a directory (e.g., "html_interface_plugin") inside your
    PyMOL plugins directory.
 2. Restart PyMOL.
-3. Go to Plugin -> HTML Interface Plugin.
+3. Go to Plugin -> ReGlyco.
 4. A window will open displaying index.html, allowing interaction.
 """
 
@@ -45,16 +45,16 @@ try:
     from PyQt5 import QtCore as QtCore_Base
     QtCore_Base.QCoreApplication.setAttribute(QtCore_Base.Qt.AA_ShareOpenGLContexts)
     QtCore_Base.QCoreApplication.setAttribute(QtCore_Base.Qt.AA_UseDesktopOpenGL)
-    print("HTML Interface Plugin: Set Qt.AA_ShareOpenGLContexts using PyQt5.")
+    print("ReGlyco: Set Qt.AA_ShareOpenGLContexts using PyQt5.")
     QT_CORE_LOADED = True
 except ImportError:
     try:
         from PySide2 import QtCore as QtCore_Base
         QtCore_Base.QCoreApplication.setAttribute(QtCore_Base.Qt.AA_ShareOpenGLContexts)
-        print("HTML Interface Plugin: Set Qt.AA_ShareOpenGLContexts using PySide2.")
+        print("ReGlyco: Set Qt.AA_ShareOpenGLContexts using PySide2.")
         QT_CORE_LOADED = True
     except ImportError:
-        print("HTML Interface Plugin Error: Could not import QtCore from PyQt5 or PySide2 "
+        print("ReGlyco Error: Could not import QtCore from PyQt5 or PySide2 "
               "to set AA_ShareOpenGLContexts.")
 
 # --- Import PyMOL's Qt wrapper and attempt WebEngine/WebChannel import ---
@@ -62,7 +62,7 @@ try:
     from pymol.Qt import QtWidgets, QtCore
     QT_WIDGETS_LOADED = True
 except ImportError:
-    print("HTML Interface Plugin Error: Could not import QtWidgets/QtCore from pymol.Qt.")
+    print("ReGlyco Error: Could not import QtWidgets/QtCore from pymol.Qt.")
     QT_WIDGETS_LOADED = False
     QtWidgets = None
     QtCore = None
@@ -76,28 +76,28 @@ if QT_CORE_LOADED and QT_WIDGETS_LOADED:
     try:
         # Most common case: PyQt5
         from PyQt5 import QtWebEngineWidgets, QtWebChannel
-        print("HTML Interface Plugin: Using PyQt5 for WebEngine & WebChannel.")
+        print("ReGlyco: Using PyQt5 for WebEngine & WebChannel.")
         QT_WEB_AVAILABLE = True
     except ImportError:
         try:
             # Less common: PySide2
             from PySide2 import QtWebEngineWidgets, QtWebChannel
-            print("HTML Interface Plugin: Using PySide2 for WebEngine & WebChannel.")
+            print("ReGlyco: Using PySide2 for WebEngine & WebChannel.")
             QT_WEB_AVAILABLE = True
         except ImportError:
             # Neither found
-            print("HTML Interface Plugin Error: Could not import QtWebEngineWidgets "
+            print("ReGlyco Error: Could not import QtWebEngineWidgets "
                   "and/or QtWebChannel from PyQt5 or PySide2.")
             if QT_CORE_LOADED and QtWidgets:
                  QtWidgets.QMessageBox.critical(None, "Plugin Error",
-                    "HTML Interface Plugin requires QtWebEngine & QtWebChannel support "
+                    "ReGlyco requires QtWebEngine & QtWebChannel support "
                     "(from PyQt5 or PySide2), which was not found.\n\n"
                     "Please ensure the necessary components are installed in PyMOL's Python environment.\n"
                     "The plugin cannot load.")
             QtWebEngineWidgets = None
             QtWebChannel = None # Ensure it's None if import failed
 else:
-    print("HTML Interface Plugin: Skipping WebEngine/WebChannel check due to missing core Qt components.")
+    print("ReGlyco: Skipping WebEngine/WebChannel check due to missing core Qt components.")
 
 def get_specific_residues_as_dicts(selection="sele"):
     """
@@ -137,7 +137,7 @@ def get_specific_residues_as_dicts(selection="sele"):
     final_residue_list = []
 
     # Define residue sets for fast lookups
-    simple_inclusion_residues = {'SER', 'THR', 'TRP'}
+    simple_inclusion_residues = {'SER', 'THR', 'TRP', 'PRO'}
     sequon_third_pos_residues = {'SER', 'THR', 'CYS'}
 
     # Iterate through the (chain, resi_num) keys in sorted order for a predictable output
@@ -320,7 +320,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
             # Check if required files exist
             if not os.path.exists(self.html_path):
                 error_msg = f"Cannot find index.html at:\n{self.html_path}"
-                print(f"HTML Interface Plugin Error: {error_msg}")
+                print(f"ReGlyco Error: {error_msg}")
                 self.setup_error_ui(error_msg)
                 #QtWidgets.QMessageBox.critical(self, "Plugin Error", error_msg) # Alternative error display
                 return # Stop initialization
@@ -331,7 +331,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
                              "Communication between PyMOL and the HTML page will likely fail.\n" \
                              "Please copy qwebchannel.js from your PyQt5/PySide2 installation " \
                              "into the plugin directory."
-                 print(f"HTML Interface Plugin Warning: {error_msg}")
+                 print(f"ReGlyco Warning: {error_msg}")
                  QtWidgets.QMessageBox.warning(self, "Missing File", error_msg)
                  # Continue loading, but communication might not work
 
@@ -355,7 +355,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
                 self.channel.registerObject("pyMolBridge", self.bridge)
                 # Make the channel available to the JavaScript context
                 self.webView.page().setWebChannel(self.channel)
-                print("HTML Interface Plugin: QWebChannel setup successful.")
+                print("ReGlyco: QWebChannel setup successful.")
             except Exception as e:
                  # Should ideally not happen if imports succeeded, but good practice
                  print(f"HTML Interface Error: Failed to set up QWebChannel: {e}")
@@ -379,7 +379,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
             # if self.bridge:
             #      self.layout.addWidget(self.send_to_js_button)
             # else:
-            #      print("HTML Interface Plugin: Python->JS button disabled (bridge unavailable).")
+            #      print("ReGlyco: Python->JS button disabled (bridge unavailable).")
 
 
             # --- Load Local HTML File ---
@@ -420,13 +420,13 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
              error_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
              self.layout.addWidget(error_label)
              self.layout.addStretch(1)
-             print(f"HTML Interface Plugin: Setup failed with error: {message}")
+             print(f"ReGlyco: Setup failed with error: {message}")
 
 
         # --- Handlers for Load Status (Optional) ---
         def _on_load_started(self):
             if not self.webView: return
-            print(f"HTML Interface Plugin: Load started for {self.webView.url().toString()}...")
+            print(f"ReGlyco: Load started for {self.webView.url().toString()}...")
             self.setWindowTitle("Loading HTML Interface...")
 
         def _on_load_progress(self, progress):
@@ -436,7 +436,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
         def _on_load_finished(self, ok):
             if not self.webView: return
             url_str = self.webView.url().toString()
-            print(f"HTML Interface Plugin: Load finished for {url_str}. Success: {ok}")
+            print(f"ReGlyco: Load finished for {url_str}. Success: {ok}")
 
             selection="(sele)"
 
@@ -450,7 +450,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
                 self.setWindowTitle(f"Glyco.me SugarBuilder - {self.webView.title()}")
                  # Check if the channel seems active (basic check)
                 if self.channel and self.bridge:
-                    print("HTML Interface Plugin: Page loaded. QWebChannel bridge should be available to JavaScript.")
+                    print("ReGlyco: Page loaded. QWebChannel bridge should be available to JavaScript.")
                     with open(tmp_file_path, 'r') as f:
                         file_content = f.read()
                         data_to_send = {
@@ -461,9 +461,9 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
                         self.bridge.base64_encoded_data = b64encode(file_content.encode("ascii")).decode("ascii")
                         self.bridge.send_data_to_js(data_to_send)
                 elif self.channel:
-                    print("HTML Interface Plugin Warning: Page loaded, but bridge object seems missing.")
+                    print("ReGlyco Warning: Page loaded, but bridge object seems missing.")
                 else:
-                    print("HTML Interface Plugin Warning: Page loaded, but QWebChannel setup may have failed earlier.")
+                    print("ReGlyco Warning: Page loaded, but QWebChannel setup may have failed earlier.")
             else:
                  self.setWindowTitle(f"Load Failed - {url_str}")
 
@@ -507,10 +507,10 @@ def __init_plugin__(app=None):
     """Plugin initialization function called by PyMOL."""
     # Check if prerequisites loaded successfully
     if not QT_WIDGETS_LOADED:
-         print("HTML Interface Plugin: Not loaded (Qt Widgets missing).")
+         print("ReGlyco: Not loaded (Qt Widgets missing).")
          return
     if not QT_WEB_AVAILABLE: # Check the combined flag for Engine+Channel
-        print("HTML Interface Plugin: Not loaded (QtWebEngine/QtWebChannel missing or failed).")
+        print("ReGlyco: Not loaded (QtWebEngine/QtWebChannel missing or failed).")
         return
 
     from pymol.plugins import addmenuitemqt
@@ -523,9 +523,9 @@ def run_plugin_gui():
     if not QT_WEB_AVAILABLE or not QtWidgets:
          if QtWidgets:
              QtWidgets.QMessageBox.critical(None, "Plugin Error",
-                "HTML Interface Plugin cannot run (QtWebEngine/QtWebChannel missing or failed).")
+                "ReGlyco cannot run (QtWebEngine/QtWebChannel missing or failed).")
          else:
-             print("HTML Interface Plugin cannot run: Critical Qt components missing.")
+             print("ReGlyco cannot run: Critical Qt components missing.")
          return
 
     instance_key = 'html_interface_main'
@@ -545,21 +545,21 @@ def run_plugin_gui():
                      INSTANCES[instance_key].show()
                  else:
                      if window_instance: window_instance.deleteLater() # Clean up failed instance
-                     print("HTML Interface Plugin: Window setup failed during initialization.")
+                     print("ReGlyco: Window setup failed during initialization.")
 
              except Exception as e:
-                 print(f"HTML Interface Plugin Error: Failed to create HtmlInterfaceWindow: {e}")
+                 print(f"ReGlyco Error: Failed to create HtmlInterfaceWindow: {e}")
                  QtWidgets.QMessageBox.critical(None, "Plugin Error",
-                    f"HTML Interface Plugin failed to create window:\n{e}")
+                    f"ReGlyco failed to create window:\n{e}")
         else:
-             print("HTML Interface Plugin Error: HtmlInterfaceWindow class not defined (Web components missing).")
+             print("ReGlyco Error: HtmlInterfaceWindow class not defined (Web components missing).")
              QtWidgets.QMessageBox.critical(None, "Plugin Error",
-                "HTML Interface Plugin failed (HtmlInterfaceWindow class missing).")
+                "ReGlyco failed (HtmlInterfaceWindow class missing).")
 
 # Optional cleanup (might not be called reliably)
 # def __del_plugin__():
 #    instance_key = 'html_interface_main'
 #    if instance_key in INSTANCES:
 #        try: INSTANCES[instance_key].close()
-#        except Exception as e: print(f"HTML Interface Plugin: Error during cleanup: {e}")
-#    print("HTML Interface Plugin unloaded.")
+#        except Exception as e: print(f"ReGlyco: Error during cleanup: {e}")
+#    print("ReGlyco unloaded.")
