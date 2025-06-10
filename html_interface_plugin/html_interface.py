@@ -32,6 +32,11 @@ import os
 import sys
 import json
 from pymol import cmd, plugins
+from urllib import request, error
+from . import snfg
+
+from base64 import b64encode
+
 import tempfile
 
 # --- Attempt to set OpenGL context sharing attribute EARLY ---
@@ -94,6 +99,132 @@ if QT_CORE_LOADED and QT_WIDGETS_LOADED:
 else:
     print("HTML Interface Plugin: Skipping WebEngine/WebChannel check due to missing core Qt components.")
 
+def get_specific_residues_as_dicts(selection="sele"):
+    """
+    Generates a list of dictionaries for specific residues with a conditional
+    check for Asparagine.
+
+    - Returns all SER, THR, and TRP residues in the selection.
+    - Returns ASN residues *only if* they match the motif N-X-[S/T/C]
+      (where X is not Proline).
+
+    Args:
+        selection (str): The PyMOL selection to analyze. Defaults to "sele".
+
+    Returns:
+        list: A sorted list of dictionaries for each matching residue. Each
+              dict contains 'number', 'chain', and 'code'.
+    """
+    # Check if the selection exists
+    # if selection not in cmd.get_names("selections"):
+    #     print(f"Error: Selection '{selection}' not found.")
+    #     return []
+
+    # --- Step 1: Build a complete map of the sequence in the selection ---
+    # This is the most robust way to check for sequence neighbors.
+    residue_map = {}
+    cmd.iterate(
+        f"({selection}) and name CA",
+        "residue_map[(chain, int(resi))] = resn",
+        space={'residue_map': residue_map}
+    )
+
+    if not residue_map:
+        print(f"Warning: Selection '{selection}' is empty or contains no protein.")
+        return []
+
+    # --- Step 2: Iterate through the map and apply conditional logic ---
+    final_residue_list = []
+
+    # Define residue sets for fast lookups
+    simple_inclusion_residues = {'SER', 'THR', 'TRP'}
+    sequon_third_pos_residues = {'SER', 'THR', 'CYS'}
+
+    # Iterate through the (chain, resi_num) keys in sorted order for a predictable output
+    for chain, resi_num in sorted(residue_map.keys()):
+        current_resn = residue_map.get((chain, resi_num))
+
+        # Apply the simple inclusion rule for SER, THR, TRP
+        if current_resn in simple_inclusion_residues:
+            final_residue_list.append({
+                'residueID': resi_num,
+                'residueChain': chain,
+                'residueName': current_resn
+            })
+
+        # Apply the special motif-checking rule for ASN
+        elif current_resn == 'ASN':
+            # Define keys for the next two residues in the sequence
+            pos_x = (chain, resi_num + 1)   # The 'X' position (any but Proline)
+            pos_stc = (chain, resi_num + 2) # The 'S/T/C' position
+
+            # Use .get() to safely access neighbors (handles C-terminus)
+            res_x = residue_map.get(pos_x)
+            res_stc = residue_map.get(pos_stc)
+
+            # Check if the motif is matched
+            if res_x is not None and res_x != 'PRO' and res_stc in sequon_third_pos_residues:
+                # Motif matches, so we include this ASN
+                final_residue_list.append({
+                    'residueID': resi_num,
+                    'residueChain': chain,
+                    'residueName': 'ASN'
+                })
+
+    # Print a summary to the console
+    print(f"Found {len(final_residue_list)} matching residues in selection '{selection}'.")
+
+    # The list is already sorted by chain and residue number due to the sorted iteration.
+    return final_residue_list
+
+
+def post_json_urllib(url, json_string):
+    """
+    Performs a POST request with a JSON string payload using urllib.
+
+    Args:
+        url (str): The target URL.
+        json_string (str): A string containing valid JSON data.
+    """
+    print(f"Attempting to POST to: {url} (using urllib)")
+
+    # Define headers
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json' # Good practice to specify what you accept
+    }
+
+    # Data must be encoded to bytes before sending with urllib
+    encoded_data = json_string.encode('utf-8')
+
+    # Create a Request object which encapsulates the URL, data, and headers
+    req = request.Request(url, data=encoded_data, headers=headers, method='POST')
+
+    try:
+        # The 'with' statement ensures the connection is closed automatically
+        with request.urlopen(req, timeout=10) as response:
+            # Read the response and decode it from bytes to a string
+            response_body = response.read().decode('utf--8')
+            print(f"Success! Status Code: {response.getcode()}")
+
+            # Pretty-print the JSON response
+            try:
+                # print("Response JSON:")
+                # print(json.dumps(json.loads(response_body), indent=2))
+                return json.loads(response_body)
+            except json.JSONDecodeError:
+                print("Response Text:")
+                print(response_body)
+
+    except error.HTTPError as e:
+        # Catches HTTP errors (e.g., 404 Not Found, 500 Server Error)
+        print(f"HTTP Error! Status Code: {e.code}")
+        print(f"Reason: {e.reason}")
+        print(f"Response Body: {e.read().decode('utf-8')}")
+    except error.URLError as e:
+        # Catches network-level errors (e.g., could not resolve host)
+        print(f"URL Error! Reason: {e.reason}")
+
 
 # --- Global storage for window instances ---
 INSTANCES = {}
@@ -134,6 +265,16 @@ if QT_WEB_AVAILABLE:
                 print(f"HTML Interface: {error_message}")
                 # Return error details to JS callback
                 return json.dumps({"status": "error", "message": error_message})
+
+        @QtCore.pyqtSlot(str, result=str)
+        def executeReGlyco(self, json_string):
+            output_data = json.loads(json_string)
+            output_data['protFileBase64'] = self.base64_encoded_data
+            results = post_json_urllib('https://glycoshape.io/api/reglyco/job',json.dumps(output_data))
+            outfile = results['output']
+            jobid = results['jobId'][:-11]
+            cmd.load(f"https://glycoshape.org/output/{outfile}",f"reglyco_result_{jobid}")
+            snfg.snfgify(f"reglyco_result_{jobid}")
 
         @QtCore.pyqtSlot(str, result=str)
         def getDataFromPyMol(self, request_type):
@@ -253,13 +394,13 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
 
             # --- Example Button (Python -> JS) ---
             # Add a button in the Python GUI to trigger sending data TO the webpage
-            self.send_to_js_button = QtWidgets.QPushButton("Send Object Names to HTML")
-            self.send_to_js_button.clicked.connect(self.send_object_names_to_js)
+            # self.send_to_js_button = QtWidgets.QPushButton("Send Object Names to HTML")
+            # self.send_to_js_button.clicked.connect(self.send_object_names_to_js)
              # Only enable the button if the bridge was successfully created
-            if self.bridge:
-                 self.layout.addWidget(self.send_to_js_button)
-            else:
-                 print("HTML Interface Plugin: Python->JS button disabled (bridge unavailable).")
+            # if self.bridge:
+            #      self.layout.addWidget(self.send_to_js_button)
+            # else:
+            #      print("HTML Interface Plugin: Python->JS button disabled (bridge unavailable).")
 
 
             # --- Load Local HTML File ---
@@ -319,11 +460,13 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
             url_str = self.webView.url().toString()
             print(f"HTML Interface Plugin: Load finished for {url_str}. Success: {ok}")
 
+            selection="(sele)"
+
             with tempfile.NamedTemporaryFile(mode='w', suffix=".pdb", delete=False) as tmp_file:
                 tmp_file_path = tmp_file.name
                 # Save the selection/all to the temporary file              
-                cmd.save(tmp_file_path, "(sele)")
-                print(f"HTML Interface: Saved (sele) to temporary file:{tmp_file_path}")
+                cmd.save(tmp_file_path, selection)
+                print(f"HTML Interface: Saved {selection} to temporary file:{tmp_file_path}")
 
             if ok:
                 self.setWindowTitle(f"Glyco.me SugarBuilder - {self.webView.title()}")
@@ -333,11 +476,11 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
                     with open(tmp_file_path, 'r') as f:
                         file_content = f.read()
                         data_to_send = {
-                            "type" : "pdb_file",
+                            "type" : "residues",
                             "source": "script",
-                            "path" : tmp_file_path,
-                            "content" : file_content
+                            "content" : get_specific_residues_as_dicts(selection)
                         }
+                        self.bridge.base64_encoded_data = b64encode(file_content.encode("ascii")).decode("ascii")
                         self.bridge.send_data_to_js(data_to_send)
                 elif self.channel:
                     print("HTML Interface Plugin Warning: Page loaded, but bridge object seems missing.")

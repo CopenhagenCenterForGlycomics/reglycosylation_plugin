@@ -189,17 +189,9 @@ function wire_events() {
     let seq = this.shadowRoot.querySelector('reglyco-select').value
     values[identifier] = seq;
     let label = this.shadowRoot.querySelector(`#residue_select input[value='${identifier}']`).parentNode;
-    console.log(seq);
     label.querySelector('reglyco-sviewer').SugarClass = MySugarClass;
     label.querySelector('reglyco-sviewer').sequence = seq;
     label.querySelector('reglyco-sviewer').scaleToFit();
-    if (seq != '') {
-    //     let image = await this.shadowRoot.querySelector('reglyco-select').shadowRoot.querySelector(`input[value='${values[identifier]}']`).parentNode.querySelector('ccg-sviewer-lite').toDataURL('image/png');
-    //     label.style.background = `url(${image}) no-repeat left center`;
-    //     label.style.backgroundSize = `contain`;
-    // } else {
-    //     label.style.background = 'inherit';
-    }
   });
 }
 
@@ -216,6 +208,15 @@ class ReGlycoSelector extends HTMLElement {
   set configuration(config) {
     this.#config = config;
     this.reconfigure();
+    let temp_selector = document.createElement('reglyco-select');
+    for (let aa of ['SER','THR','ASN','TRP']) {
+        let sugars = this.#config.configurations[aa].map( glycan => glycan.iupac );
+        MySelect.processSequences(sugars,MySugarClass);
+    }
+  }
+
+  get value() {
+    return values;
   }
 
   updateSugars() {
@@ -227,6 +228,10 @@ class ReGlycoSelector extends HTMLElement {
       kid.firstElementChild.innerText = sugar;
       this.shadowRoot.querySelector('#sugar_select').appendChild(kid);
     }
+  }
+
+  glytoucanMap() {
+    return Object.fromEntries(Object.entries(this.#config.configurations).map( ([aa,glycans]) => glycans ).flat().map( glycan => [glycan.iupac, glycan.glytoucan] ));
   }
 
   reconfigure() {

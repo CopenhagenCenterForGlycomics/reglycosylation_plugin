@@ -16,7 +16,7 @@
 </head>
 <body>
 <style>
-ccg-sugarselect, my-select, reglyco-selector {
+reglyco-selector {
     resize: both;
     overflow: auto;
     --max-select-display: 19;
@@ -27,61 +27,58 @@ ccg-sugarselect, my-select, reglyco-selector {
 </style>
 <script type="text/javascript">
 
-    const REGLYCO_CONFIG = { 'configuration': {} };
+    async function init_reglyco(sitedata) {
 
-    async function upload_pdb(pdb) {
-
-        document.getElementById('content').innerText = 'Making request';
-        const blob = new Blob([pdb], {
-          type: 'chemical/x-pdb',
-        });
-        const formdata = new FormData();
-        formdata.append('protFile', blob,'pdbfile.pdb');
-        const response = await fetch('https://glycoshape.org/api/reglyco/init', {
+        const response = await fetch('https://glycoshape.io/api/reglyco/init', {
           method: 'POST',
-          body: formdata
+          headers: {
+            'Content-Type' : 'application/json'
+          },
+          body: JSON.stringify({"configsOnly" : true})
         });
+
 
         let response_json = await response.json();
-        // console.log(JSON.stringify(response_json));
-        // let response_json = response;
+        response_json.glycosylation = {available: sitedata};
         document.getElementById('selector').configuration = response_json;
 
-        /*
+    }
 
-curl -X POST https://glycoshape.io/api/reglyco/job -H "Content-Type: application/json" -d '{"jobId": "job2", "jobType": "optimization", "filename": "P01857.pdb", "selectedGlycans": {"50_A": "G00031MO"}}'
-        Or provide protFileBase64 
-        */
+    async function reglyco_pdb(pdb) {
+        let reglyco = document.getElementById('selector');
+        let toucanmap = reglyco.glytoucanMap();
+        let values = reglyco.value;
+        const dataDiv = document.getElementById('pymolData');
+        let request = {
+            "jobType" : "optimization",
+            "maxGenerations" : 4,
+            "selectedGlycans" : Object.fromEntries(Object.entries(values).map(([k,v]) => [k.replace(/_[A-Z]+$/,''), toucanmap[v] ])),
+              "outputFormat": "PDB",
+              "wiggleAngle": 5,
+              "populationSize": 128,
+              "wiggleAttempts": 20,
+              "ensembleSize": 10,
+            "checkSteric": false
+        };
+
+        pyMolBridge.executeReGlyco(JSON.stringify(request))
 
     }
 
 </script>
     <h1>Glyco.me x ReGlyco</h1>
+    <!-- Section to send commands to PyMOL -->
+    <button id="perform_reglyco" onclick="reglyco_pdb()">Perform ReGlyco</button>
 
     <reglyco-selector id="selector"></reglyco-selector>
-
-    <div id="content"></div>
-
-    <!-- Section to send commands to PyMOL -->
-    <h2>Send Command to PyMOL</h2>
-    <input type="text" id="pymolCommand" value="color red, chain A">
-    <button id="sendCmdButton" onclick="upload_pdb()">Send Command</button>
-    <div id="sendCommandStatus"></div>
-
-    <!-- Section to receive data from PyMOL -->
-    <h2>Data from PyMOL</h2>
-    <button id="getDataButton">Request PyMOL Data</button>
-    <div id="pymolData" class="output">Waiting for data...</div>
 
     <script>
         var pyMolBridge = null; // Global variable to hold the Python bridge object
 
         window.onload = function() {
-            document.getElementById('getDataButton').addEventListener('click',upload_pdb);
             if (typeof qt === 'undefined' || typeof qt.webChannelTransport === 'undefined') {
                 console.error("qt or qt.webChannelTransport is not defined. QWebChannel cannot be initialized.");
                 alert("Error: Cannot connect to PyMOL. Is the Qt WebChannel environment set up correctly?");
-                document.getElementById('pymolData').innerText = "Error: QWebChannel not available.";
                 return;
             }
 
@@ -92,53 +89,15 @@ curl -X POST https://glycoshape.io/api/reglyco/job -H "Content-Type: application
 
                 if (!pyMolBridge) {
                      console.error("Failed to get pyMolBridge object from channel.");
-                     document.getElementById('pymolData').innerText = "Error: Connection object not found.";
                      return;
                 }
-
-                console.log("PyMOL Bridge connected:", pyMolBridge);
-                document.getElementById('pymolData').innerText = "Connected to PyMOL.";
-
-                // --- Setup Event Listeners ---
-
-                // Button to send command *to* PyMOL
-                document.getElementById('sendCmdButton').onclick = function() {
-                    if (!pyMolBridge) return;
-                    var cmd = document.getElementById('pymolCommand').value;
-                    console.log("Sending command to PyMOL:", cmd);
-                    document.getElementById('sendCommandStatus').innerText = `Sending: ${cmd}...`;
-                    // Call the Python slot 'executePymolCommand'
-                    pyMolBridge.executePymolCommand(cmd, function(result) {
-                        // This callback receives the return value from Python
-                        console.log("PyMOL execution result:", result);
-                        document.getElementById('sendCommandStatus').innerText = `Result: ${result}`;
-                    });
-                };
-
-                // Button to request data *from* PyMOL
-                document.getElementById('getDataButton').onclick = function() {
-                    if (!pyMolBridge) return;
-                    console.log("Requesting data from PyMOL...");
-                     document.getElementById('pymolData').innerText = "Requesting...";
-                    // Call the Python slot 'getDataFromPyMol'
-                    pyMolBridge.getDataFromPyMol("molecule_names", function(data) {
-                         // This callback receives the data from Python
-                         console.log("Received data from PyMOL:", data);
-                         document.getElementById('pymolData').innerText = `PyMOL says: ${JSON.stringify(data, null, 2)}`;
-                    });
-                };
 
             });
         };
 
-        // --- Function callable *from* PyMOL ---
         function updateFromPyMol(message) {
-            console.log("Message received directly from PyMOL:", message);
-            const dataDiv = document.getElementById('pymolData');
-            dataDiv.innerText = `Direct message from PyMOL: ${JSON.stringify(message, null, 2)}`;
-            // You could add more complex logic here based on the message type/content
-            if (message.type == "pdb_file") {
-                upload_pdb(message.content);
+            if (message.type == "residues") {
+                init_reglyco(message.content);
             }
         }
 
