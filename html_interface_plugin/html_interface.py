@@ -32,12 +32,14 @@ import os
 import sys
 import json
 from pymol import cmd, plugins
+import tempfile
 
 # --- Attempt to set OpenGL context sharing attribute EARLY ---
 QT_CORE_LOADED = False
 try:
     from PyQt5 import QtCore as QtCore_Base
     QtCore_Base.QCoreApplication.setAttribute(QtCore_Base.Qt.AA_ShareOpenGLContexts)
+    QtCore_Base.QCoreApplication.setAttribute(QtCore_Base.Qt.AA_UseDesktopOpenGL)
     print("HTML Interface Plugin: Set Qt.AA_ShareOpenGLContexts using PyQt5.")
     QT_CORE_LOADED = True
 except ImportError:
@@ -182,8 +184,8 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
         """Main window hosting the QWebEngineView for local index.html."""
         def __init__(self, parent=None):
             super().__init__(parent)
-            self.setWindowTitle("Glyco.me SugarBuilder")
-            self.resize(800, 600) # Default size
+            self.setWindowTitle("Glyco.me x ReGlyco")
+            self.resize(800, 900) # Default size
 
             # Re-verify availability at instantiation
             if not QT_WEB_AVAILABLE:
@@ -316,11 +318,27 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
             if not self.webView: return
             url_str = self.webView.url().toString()
             print(f"HTML Interface Plugin: Load finished for {url_str}. Success: {ok}")
+
+            with tempfile.NamedTemporaryFile(mode='w', suffix=".pdb", delete=False) as tmp_file:
+                tmp_file_path = tmp_file.name
+                # Save the selection/all to the temporary file              
+                cmd.save(tmp_file_path, "(sele)")
+                print(f"HTML Interface: Saved (sele) to temporary file:{tmp_file_path}")
+
             if ok:
                 self.setWindowTitle(f"Glyco.me SugarBuilder - {self.webView.title()}")
                  # Check if the channel seems active (basic check)
                 if self.channel and self.bridge:
                     print("HTML Interface Plugin: Page loaded. QWebChannel bridge should be available to JavaScript.")
+                    with open(tmp_file_path, 'r') as f:
+                        file_content = f.read()
+                        data_to_send = {
+                            "type" : "pdb_file",
+                            "source": "script",
+                            "path" : tmp_file_path,
+                            "content" : file_content
+                        }
+                        self.bridge.send_data_to_js(data_to_send)
                 elif self.channel:
                     print("HTML Interface Plugin Warning: Page loaded, but bridge object seems missing.")
                 else:
