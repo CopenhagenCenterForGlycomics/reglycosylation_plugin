@@ -266,6 +266,23 @@ def cgo_sphere(x, y, z, size, color):
         cgo.SPHERE, float(x), float(y), float(z), float(size)*1.3
     ]
 
+def cgo_cone(x, y, z, r, color, x_axis, y_axis, z_axis):
+    center = np.array([x, y, z])
+    rotation_matrix = get_transformation_matrix(x_axis, y_axis, z_axis)
+
+    # Define diamond vertices relative to the origin (0,0,0) along local axes
+    vertices_local = [
+        [0, 0, r],    # Top (+Z local)
+        [0, 0, -r]   # Bottom (-Z local)
+    ]
+
+    vertices = transform_vertices(vertices_local, center, rotation_matrix)
+
+    return [
+        cgo.COLOR, *color,
+        cgo.CONE, *vertices[0], *vertices[1], 0, r, *color, *color, 1, 1
+    ]
+
 def cgo_diamond(x, y, z, r, color, x_axis, y_axis, z_axis):
     center = np.array([x, y, z])
     rotation_matrix = get_transformation_matrix(x_axis, y_axis, z_axis)
@@ -313,6 +330,59 @@ def cgo_diamond(x, y, z, r, color, x_axis, y_axis, z_axis):
     diamond_cgo.extend([cgo.END])
     return diamond_cgo
 
+def cgo_half_diamond(x, y, z, r, color, color_2, x_axis, y_axis, z_axis):
+    center = np.array([x, y, z])
+    rotation_matrix = get_transformation_matrix(x_axis, y_axis, z_axis)
+
+    # Define diamond vertices relative to the origin (0,0,0) along local axes
+    vertices_local = [
+        [0, 0, r],    # Top (+Z local)
+        [0, 0, -r],   # Bottom (-Z local)
+        [0, r, 0],    # "+Y local" vertex
+        [0, -r, 0],   # "-Y local" vertex
+        [r, 0, 0],    # "+X local" vertex
+        [-r, 0, 0]    # "-X local" vertex
+    ]
+    vertices = transform_vertices(vertices_local, center, rotation_matrix)
+
+    # Normals for the 8 faces (approximate based on average of vertices)
+    # Normal calculations should ideally be based on actual triangle vertices and cross products
+    # Using transformed basis vectors scaled slightly is a simpler approximation:
+    normals_local = [ # Approximations for the 8 faces pointing outwards
+         normalize_vector(np.array([ 1,  1,  1])), normalize_vector(np.array([-1,  1,  1])),
+         normalize_vector(np.array([-1, -1,  1])), normalize_vector(np.array([ 1, -1,  1])),
+         normalize_vector(np.array([ 1,  1, -1])), normalize_vector(np.array([-1,  1, -1])),
+         normalize_vector(np.array([-1, -1, -1])), normalize_vector(np.array([ 1, -1, -1])),
+    ]
+    normals = transform_normals(normals_local, rotation_matrix)
+    diamond_cgo = []
+    diamond_cgo.extend([cgo.BEGIN, cgo.TRIANGLES])
+    # Face 1 (Top, +Y, +X local) - Vertices 0, 2, 4
+    diamond_cgo.extend([cgo.COLOR, *color_2])
+    diamond_cgo.extend([cgo.NORMAL, *normals[0], cgo.VERTEX, *vertices[0], cgo.VERTEX, *vertices[2], cgo.VERTEX, *vertices[4]])
+    # Face 2 (Top, +Y, -X local) - Vertices 0, 5, 2 (Reordered for winding)
+    diamond_cgo.extend([cgo.COLOR, *color])
+    diamond_cgo.extend([cgo.NORMAL, *normals[1], cgo.VERTEX, *vertices[0], cgo.VERTEX, *vertices[5], cgo.VERTEX, *vertices[2]])
+    # Face 3 (Top, -Y, -X local) - Vertices 0, 3, 5
+    diamond_cgo.extend([cgo.COLOR, *color])
+    diamond_cgo.extend([cgo.NORMAL, *normals[2], cgo.VERTEX, *vertices[0], cgo.VERTEX, *vertices[3], cgo.VERTEX, *vertices[5]])
+    # Face 4 (Top, -Y, +X local) - Vertices 0, 4, 3 (Reordered for winding)
+    diamond_cgo.extend([cgo.COLOR, *color_2])
+    diamond_cgo.extend([cgo.NORMAL, *normals[3], cgo.VERTEX, *vertices[0], cgo.VERTEX, *vertices[4], cgo.VERTEX, *vertices[3]])
+    # Face 5 (Bottom, +Y, +X local) - Vertices 1, 4, 2 (Reordered for winding)
+    diamond_cgo.extend([cgo.COLOR, *color_2])
+    diamond_cgo.extend([cgo.NORMAL, *normals[4], cgo.VERTEX, *vertices[1], cgo.VERTEX, *vertices[4], cgo.VERTEX, *vertices[2]])
+    # Face 6 (Bottom, +Y, -X local) - Vertices 1, 2, 5
+    diamond_cgo.extend([cgo.COLOR, *color])
+    diamond_cgo.extend([cgo.NORMAL, *normals[5], cgo.VERTEX, *vertices[1], cgo.VERTEX, *vertices[2], cgo.VERTEX, *vertices[5]])
+    # Face 7 (Bottom, -Y, -X local) - Vertices 1, 5, 3 (Reordered for winding)
+    diamond_cgo.extend([cgo.COLOR, *color])
+    diamond_cgo.extend([cgo.NORMAL, *normals[6], cgo.VERTEX, *vertices[1], cgo.VERTEX, *vertices[5], cgo.VERTEX, *vertices[3]])
+    # Face 8 (Bottom, -Y, +X local) - Vertices 1, 3, 4
+    diamond_cgo.extend([cgo.COLOR, *color_2])
+    diamond_cgo.extend([cgo.NORMAL, *normals[7], cgo.VERTEX, *vertices[1], cgo.VERTEX, *vertices[3], cgo.VERTEX, *vertices[4]])
+    diamond_cgo.extend([cgo.END])
+    return diamond_cgo
 
 def cgo_cube(x, y, z, r, color, x_axis, y_axis, z_axis):
     center = np.array([x, y, z])
@@ -387,6 +457,7 @@ def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
         'GAL': (SNFG_YELLOW, 'sphere'),
         'FUC': (SNFG_RED, 'sphere'), # Official SNFG is Red Triangle, using sphere for simplicity
         'XYL': (SNFG_ORANGE, 'star'), # Official SNFG is Orange Star
+        'XYP': (SNFG_ORANGE, 'star'), # Alias
         'NAG': (SNFG_BLUE, 'cube'), # GlcNAc
         'GLCNAC': (SNFG_BLUE, 'cube'), # Alias
         'NGA': (SNFG_YELLOW, 'cube'), # GalNAc
@@ -397,8 +468,9 @@ def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
         'SIA': (SNFG_PURPLE, 'diamond'), # Alias
         'NEU5GC': (SNFG_LIGHT_BLUE, 'diamond'), # Neu5Gc
         'KDN': (SNFG_GREEN, 'diamond'), # KDN (Usually green diamond)
-        'GLCA': (SNFG_BLUE, 'diamond'), # GlcA (Official SNFG is blue half-circle up) - Using diamond
-        'IDOA': (SNFG_BROWN, 'diamond'), # IdoA (Official SNFG is brown half-circle up) - Using diamond
+        'GLCA': (SNFG_BLUE, 'half_diamond'), # GlcA (Official SNFG is blue half-circle up) - Using diamond
+        'BDP': (SNFG_BLUE, 'half_diamond'), # Alias
+        'IDOA': (SNFG_BROWN, 'half_diamond_reverse'), # IdoA (Official SNFG is brown half-circle up) - Using diamond
         'IDO': (SNFG_BROWN, 'diamond'), # Alias
         'API': (SNFG_PINK, 'diamond'), # Api (Official SNFG is pink cross rectangle) - Using diamond
         # Add other required sugars here following the pattern
@@ -447,10 +519,16 @@ def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
                 cgo_obj = cgo_sphere(x, y, z, 1.8 * scale, color) # Slightly larger base scale for spheres
             elif shape == 'star':
                 cgo_obj = cgo_star(x, y, z, shape_scale_factor, color, x_axis, y_axis, z_axis)
+            elif shape == 'cone':
+                cgo_obj = cgo_cone(x, y, z, shape_scale_factor * 0.75, color, x_axis, y_axis, z_axis)
             elif shape == 'cube':
                 cgo_obj = cgo_cube(x, y, z, shape_scale_factor * 0.55, color, x_axis, y_axis, z_axis) # Cube radius is half-side length, adjusted scale
             elif shape == 'diamond':
                 cgo_obj = cgo_diamond(x, y, z, shape_scale_factor * 0.75, color, x_axis, y_axis, z_axis) # Diamond radius needs tuning
+            elif shape == 'half_diamond':
+                cgo_obj = cgo_half_diamond(x, y, z, shape_scale_factor * 0.75, color, SNFG_WHITE, x_axis, y_axis, z_axis) # Diamond radius needs tuning
+            elif shape == 'half_diamond_reverse':
+                cgo_obj = cgo_half_diamond(x, y, z, shape_scale_factor * 0.75, SNFG_WHITE, color, x_axis, y_axis, z_axis) # Diamond radius needs tuning
             else:
                  print(f"Warning: Shape '{shape}' for residue {resn} is not implemented. Using sphere.")
                  cgo_obj = cgo_sphere(x, y, z, 1.8 * scale, color)

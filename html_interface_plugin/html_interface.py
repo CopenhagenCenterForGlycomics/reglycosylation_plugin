@@ -245,27 +245,6 @@ if QT_WEB_AVAILABLE:
             self.web_view_widget = web_view_widget
 
         # --- Slots callable FROM JavaScript ---
-
-        @QtCore.pyqtSlot(str, result=str)
-        def executePymolCommand(self, command_string):
-            """Executes a PyMOL command sent from JavaScript."""
-            print(f"HTML Interface: Received command: {command_string}")
-            if not command_string:
-                return json.dumps({"status": "error", "message": "Empty command received."})
-            try:
-                # Use cmd.do for simplicity. Consider cmd.async_do for long commands.
-                # Security Note: Be cautious executing arbitrary strings if HTML source
-                # is not fully trusted.
-                cmd.do(command_string)
-                print(f"HTML Interface: Executed command successfully.")
-                # Return status to JS callback as JSON string
-                return json.dumps({"status": "success", "command": command_string})
-            except Exception as e:
-                error_message = f"Error executing command '{command_string}': {e}"
-                print(f"HTML Interface: {error_message}")
-                # Return error details to JS callback
-                return json.dumps({"status": "error", "message": error_message})
-
         @QtCore.pyqtSlot(str, result=str)
         def executeReGlyco(self, json_string):
             output_data = json.loads(json_string)
@@ -405,7 +384,6 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
 
             # --- Load Local HTML File ---
             local_url = QtCore.QUrl.fromLocalFile(self.html_path)
-            print(f"HTML Interface Plugin: Loading local file: {local_url.toString()}")
 
             # Connect signals for loading feedback (optional but useful)
             self.webView.loadFinished.connect(self._on_load_finished)
@@ -489,35 +467,8 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
             else:
                  self.setWindowTitle(f"Load Failed - {url_str}")
 
-
-        # --- Example Method for Python -> JS Button ---
-        def send_object_names_to_js(self):
-            """Example method triggered by the Python button."""
-            if not self.bridge:
-                print("HTML Interface Plugin: Cannot send data to JS, bridge not available.")
-                QtWidgets.QMessageBox.warning(self, "Bridge Error", "Communication bridge to HTML is not active.")
-                return
-
-            try:
-                names = cmd.get_names("objects")
-                data_to_send = {
-                    "type": "object_list",
-                    "source": "python_button",
-                    "objects": names,
-                    "count": len(names)
-                }
-                # Use the bridge's method to send data
-                self.bridge.send_data_to_js(data_to_send)
-            except Exception as e:
-                error_msg = f"Could not get object names to send: {e}"
-                print(f"HTML Interface Error: {error_msg}")
-                # Optionally send an error message to JS as well
-                # self.bridge.send_data_to_js({"error": error_msg})
-                QtWidgets.QMessageBox.warning(self, "PyMOL Error", error_msg)
-
         def closeEvent(self, event):
             """Clean up when the window is closed."""
-            print("HTML Interface Plugin: Closing window.")
             instance_key = 'html_interface_main'
             INSTANCES.pop(instance_key, None) # Remove from global dict
 
@@ -563,7 +514,7 @@ def __init_plugin__(app=None):
         return
 
     from pymol.plugins import addmenuitemqt
-    addmenuitemqt('Draw a sugar', run_plugin_gui)
+    addmenuitemqt('ReGlyco', run_plugin_gui)
 
 # Function to launch the plugin GUI
 def run_plugin_gui():
