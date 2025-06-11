@@ -202,7 +202,7 @@ def post_json_urllib(url, json_string):
 
     try:
         # The 'with' statement ensures the connection is closed automatically
-        with request.urlopen(req, timeout=10) as response:
+        with request.urlopen(req, timeout=120) as response:
             # Read the response and decode it from bytes to a string
             response_body = response.read().decode('utf--8')
             print(f"Success! Status Code: {response.getcode()}")

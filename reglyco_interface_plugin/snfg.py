@@ -466,6 +466,7 @@ def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
         'FUL': (SNFG_RED, 'cone'), # Alias
         'XYL': (SNFG_ORANGE, 'star'), # Official SNFG is Orange Star
         'XYP': (SNFG_ORANGE, 'star'), # Alias
+        'XYS': (SNFG_ORANGE, 'star'), # Alias
         'ARA': (SNFG_GREEN, 'star'), # Arabinose 
         'AHR': (SNFG_GREEN, 'star'), # Alias
         'RIB': (SNFG_PINK, 'star'), # Ribose
@@ -491,6 +492,7 @@ def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
         'BDP': (SNFG_BLUE, 'half_diamond'), # Alias
         'IDOA': (SNFG_BROWN, 'half_diamond_reverse'), # IdoA (Official SNFG is brown half-circle up) - Using diamond
         'IDS': (SNFG_BROWN, 'half_diamond_reverse'), # Alias
+        'IDR': (SNFG_BROWN, 'half_diamond_reverse'), # Alias
         'API': (SNFG_PINK, 'diamond'), # Api (Official SNFG is pink cross rectangle) - Using diamond
         # Add other required sugars here following the pattern
     }
