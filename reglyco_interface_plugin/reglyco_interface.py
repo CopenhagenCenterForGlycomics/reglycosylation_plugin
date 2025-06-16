@@ -314,8 +314,8 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
 
             # --- Find Local HTML and JS Files ---
             self.script_dir = os.path.dirname(os.path.realpath(__file__))
-            self.html_path = os.path.join(self.script_dir, "index.html")
-            self.qwebchannel_js_path = os.path.join(self.script_dir, "qwebchannel.js")
+            self.html_path = os.path.join(self.script_dir, "web", "index.html")
+            self.qwebchannel_js_path = os.path.join(self.script_dir, "web" , "qwebchannel.js")
 
             # Check if required files exist
             if not os.path.exists(self.html_path):

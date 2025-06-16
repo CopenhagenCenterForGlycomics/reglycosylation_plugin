@@ -1,0 +1,6 @@
+**/*/.DS_Store
+web/glyco_css
+node_modules
+**/*/main_bundled.css
+__pycache__
+*.pyc

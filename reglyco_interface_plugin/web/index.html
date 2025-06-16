@@ -4,9 +4,9 @@
     <title>ReGlyco interface</title>
     <!-- Include the QWebChannel JavaScript file -->
     <script src="qwebchannel.js"></script>
-    <script src="sviewer-browser.bundle.js"></script>
+    <script charset="UTF-8" src="sviewer.bundle.js"></script>
     <script src="reglyco-selector.js"></script>
-    <script src="config_response.json"></script>
+    <link rel="stylesheet" href="main_bundled.css"/>
     <style>
         body { font-family: sans-serif; padding: 10px; }
         .output { border: 1px solid #ccc; padding: 8px; min-height: 50px; background-color: #f9f9f9; margin-top: 10px; white-space: pre-wrap; }
@@ -20,10 +20,16 @@ reglyco-selector {
     resize: both;
     overflow: auto;
     --max-select-display: 19;
-    --selection-color: rgba(90,200,200,1);
-    --button-default-background-color: #eee;
-    --palette-closer-style: var(--palette-closer-light);
+    --selection-color: var(--base-color-darkest);;
+    --button-default-background-color: var(--main-color);
 }
+
+body {
+    padding: 0px;
+    margin: 0px;
+}
+
+
 </style>
 <script type="text/javascript">
 
@@ -66,9 +72,10 @@ reglyco-selector {
     }
 
 </script>
-    <h1>Glyco.me x ReGlyco</h1>
+<header class="pageheader"><section class="logo"><a class="home" href="https://glyco.me" target="_new"></a><h1>ReGlyco builder</h1></section></header>
+
     <!-- Section to send commands to PyMOL -->
-    <button id="perform_reglyco" onclick="reglyco_pdb()">Perform ReGlyco</button>
+    <button id="perform_reglyco" class="glyco" onclick="reglyco_pdb()">Create sugars</button>
 
     <reglyco-selector id="selector"></reglyco-selector>
 
