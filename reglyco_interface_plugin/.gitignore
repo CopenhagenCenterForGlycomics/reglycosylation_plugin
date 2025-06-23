@@ -1,3 +1,4 @@
+.devcontainer.json
 **/*/.DS_Store
 web/glyco_css
 node_modules

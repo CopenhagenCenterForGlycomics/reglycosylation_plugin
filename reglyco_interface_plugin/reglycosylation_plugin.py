@@ -1,31 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-PyMOL Plugin: html_interface.py
-
-Description:
-A PyMOL plugin that opens a local static HTML file (index.html)
-located alongside this script. It uses QtWebEngine to display the
-HTML and QtWebChannel to establish two-way communication between
-the Python environment (PyMOL) and JavaScript running in the HTML page.
-
-Requirements:
-- PyMOL built with PyQt5/PySide2 support.
-- PyQt5/PySide2 installed in PyMOL's Python environment.
-- The QtWebEngine component must be available (usually installed via
-  `pip install PyQtWebEngine` or `conda install pyqtwebengine` if not
-  bundled with PyMOL's Qt).
-- An 'index.html' file in the same directory as this script.
-- The 'qwebchannel.js' file (from your PyQt5/PySide2 installation)
-  in the same directory as this script.
-
-Usage:
-1. Place this script, __init__.py, index.html, and qwebchannel.js
-   in a directory (e.g., "html_interface_plugin") inside your
-   PyMOL plugins directory.
-2. Restart PyMOL.
-3. Go to Plugin -> ReGlyco.
-4. A window will open displaying index.html, allowing interaction.
+PyMOL Plugin: reglycosylation_plugin.py
 """
 
 import os
@@ -45,16 +21,16 @@ try:
     from PyQt5 import QtCore as QtCore_Base
     QtCore_Base.QCoreApplication.setAttribute(QtCore_Base.Qt.AA_ShareOpenGLContexts)
     QtCore_Base.QCoreApplication.setAttribute(QtCore_Base.Qt.AA_UseDesktopOpenGL)
-    print("ReGlyco: Set Qt.AA_ShareOpenGLContexts using PyQt5.")
+    print("Reglycosylation plugin: Set Qt.AA_ShareOpenGLContexts using PyQt5.")
     QT_CORE_LOADED = True
 except ImportError:
     try:
         from PySide2 import QtCore as QtCore_Base
         QtCore_Base.QCoreApplication.setAttribute(QtCore_Base.Qt.AA_ShareOpenGLContexts)
-        print("ReGlyco: Set Qt.AA_ShareOpenGLContexts using PySide2.")
+        print("Reglycosylation plugin: Set Qt.AA_ShareOpenGLContexts using PySide2.")
         QT_CORE_LOADED = True
     except ImportError:
-        print("ReGlyco Error: Could not import QtCore from PyQt5 or PySide2 "
+        print("Reglycosylation plugin Error: Could not import QtCore from PyQt5 or PySide2 "
               "to set AA_ShareOpenGLContexts.")
 
 # --- Import PyMOL's Qt wrapper and attempt WebEngine/WebChannel import ---
@@ -62,7 +38,7 @@ try:
     from pymol.Qt import QtWidgets, QtCore
     QT_WIDGETS_LOADED = True
 except ImportError:
-    print("ReGlyco Error: Could not import QtWidgets/QtCore from pymol.Qt.")
+    print("Reglycosylation plugin Error: Could not import QtWidgets/QtCore from pymol.Qt.")
     QT_WIDGETS_LOADED = False
     QtWidgets = None
     QtCore = None
@@ -76,28 +52,28 @@ if QT_CORE_LOADED and QT_WIDGETS_LOADED:
     try:
         # Most common case: PyQt5
         from PyQt5 import QtWebEngineWidgets, QtWebChannel
-        print("ReGlyco: Using PyQt5 for WebEngine & WebChannel.")
+        print("Reglycosylation plugin: Using PyQt5 for WebEngine & WebChannel.")
         QT_WEB_AVAILABLE = True
     except ImportError:
         try:
             # Less common: PySide2
             from PySide2 import QtWebEngineWidgets, QtWebChannel
-            print("ReGlyco: Using PySide2 for WebEngine & WebChannel.")
+            print("Reglycosylation plugin: Using PySide2 for WebEngine & WebChannel.")
             QT_WEB_AVAILABLE = True
         except ImportError:
             # Neither found
-            print("ReGlyco Error: Could not import QtWebEngineWidgets "
+            print("Reglycosylation plugin Error: Could not import QtWebEngineWidgets "
                   "and/or QtWebChannel from PyQt5 or PySide2.")
             if QT_CORE_LOADED and QtWidgets:
                  QtWidgets.QMessageBox.critical(None, "Plugin Error",
-                    "ReGlyco requires QtWebEngine & QtWebChannel support "
+                    "Reglycosylation plugin requires QtWebEngine & QtWebChannel support "
                     "(from PyQt5 or PySide2), which was not found.\n\n"
                     "Please ensure the necessary components are installed in PyMOL's Python environment.\n"
                     "The plugin cannot load.")
             QtWebEngineWidgets = None
             QtWebChannel = None # Ensure it's None if import failed
 else:
-    print("ReGlyco: Skipping WebEngine/WebChannel check due to missing core Qt components.")
+    print("Reglycosylation plugin: Skipping WebEngine/WebChannel check due to missing core Qt components.")
 
 def get_specific_residues_as_dicts(selection="sele"):
     """
@@ -320,7 +296,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
             # Check if required files exist
             if not os.path.exists(self.html_path):
                 error_msg = f"Cannot find index.html at:\n{self.html_path}"
-                print(f"ReGlyco Error: {error_msg}")
+                print(f"Reglycosylation plugin Error: {error_msg}")
                 self.setup_error_ui(error_msg)
                 #QtWidgets.QMessageBox.critical(self, "Plugin Error", error_msg) # Alternative error display
                 return # Stop initialization
@@ -331,7 +307,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
                              "Communication between PyMOL and the HTML page will likely fail.\n" \
                              "Please copy qwebchannel.js from your PyQt5/PySide2 installation " \
                              "into the plugin directory."
-                 print(f"ReGlyco Warning: {error_msg}")
+                 print(f"Reglycosylation plugin Warning: {error_msg}")
                  QtWidgets.QMessageBox.warning(self, "Missing File", error_msg)
                  # Continue loading, but communication might not work
 
@@ -355,7 +331,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
                 self.channel.registerObject("pyMolBridge", self.bridge)
                 # Make the channel available to the JavaScript context
                 self.webView.page().setWebChannel(self.channel)
-                print("ReGlyco: QWebChannel setup successful.")
+                print("Reglycosylation plugin: QWebChannel setup successful.")
             except Exception as e:
                  # Should ideally not happen if imports succeeded, but good practice
                  print(f"HTML Interface Error: Failed to set up QWebChannel: {e}")
@@ -379,7 +355,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
             # if self.bridge:
             #      self.layout.addWidget(self.send_to_js_button)
             # else:
-            #      print("ReGlyco: Python->JS button disabled (bridge unavailable).")
+            #      print("Reglycosylation plugin: Python->JS button disabled (bridge unavailable).")
 
 
             # --- Load Local HTML File ---
@@ -420,13 +396,13 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
              error_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
              self.layout.addWidget(error_label)
              self.layout.addStretch(1)
-             print(f"ReGlyco: Setup failed with error: {message}")
+             print(f"Reglycosylation plugin: Setup failed with error: {message}")
 
 
         # --- Handlers for Load Status (Optional) ---
         def _on_load_started(self):
             if not self.webView: return
-            print(f"ReGlyco: Load started for {self.webView.url().toString()}...")
+            print(f"Reglycosylation plugin: Load started for {self.webView.url().toString()}...")
             self.setWindowTitle("Loading HTML Interface...")
 
         def _on_load_progress(self, progress):
@@ -436,7 +412,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
         def _on_load_finished(self, ok):
             if not self.webView: return
             url_str = self.webView.url().toString()
-            print(f"ReGlyco: Load finished for {url_str}. Success: {ok}")
+            print(f"Reglycosylation plugin: Load finished for {url_str}. Success: {ok}")
 
             selection="(sele)"
 
@@ -450,7 +426,7 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
                 self.setWindowTitle(f"Glyco.me SugarBuilder - {self.webView.title()}")
                  # Check if the channel seems active (basic check)
                 if self.channel and self.bridge:
-                    print("ReGlyco: Page loaded. QWebChannel bridge should be available to JavaScript.")
+                    print("Reglycosylation plugin: Page loaded. QWebChannel bridge should be available to JavaScript.")
                     with open(tmp_file_path, 'r') as f:
                         file_content = f.read()
                         data_to_send = {
@@ -461,9 +437,9 @@ if QT_WEB_AVAILABLE and QtWebEngineWidgets and QtWebChannel:
                         self.bridge.base64_encoded_data = b64encode(file_content.encode("ascii")).decode("ascii")
                         self.bridge.send_data_to_js(data_to_send)
                 elif self.channel:
-                    print("ReGlyco Warning: Page loaded, but bridge object seems missing.")
+                    print("Reglycosylation plugin Warning: Page loaded, but bridge object seems missing.")
                 else:
-                    print("ReGlyco Warning: Page loaded, but QWebChannel setup may have failed earlier.")
+                    print("Reglycosylation plugin Warning: Page loaded, but QWebChannel setup may have failed earlier.")
             else:
                  self.setWindowTitle(f"Load Failed - {url_str}")
 
@@ -507,14 +483,14 @@ def __init_plugin__(app=None):
     """Plugin initialization function called by PyMOL."""
     # Check if prerequisites loaded successfully
     if not QT_WIDGETS_LOADED:
-         print("ReGlyco: Not loaded (Qt Widgets missing).")
+         print("Reglycosylation plugin: Not loaded (Qt Widgets missing).")
          return
     if not QT_WEB_AVAILABLE: # Check the combined flag for Engine+Channel
-        print("ReGlyco: Not loaded (QtWebEngine/QtWebChannel missing or failed).")
+        print("Reglycosylation plugin: Not loaded (QtWebEngine/QtWebChannel missing or failed).")
         return
 
     from pymol.plugins import addmenuitemqt
-    addmenuitemqt('ReGlyco', run_plugin_gui)
+    addmenuitemqt('Reglycosylation plugin', run_plugin_gui)
 
 # Function to launch the plugin GUI
 def run_plugin_gui():
@@ -523,9 +499,9 @@ def run_plugin_gui():
     if not QT_WEB_AVAILABLE or not QtWidgets:
          if QtWidgets:
              QtWidgets.QMessageBox.critical(None, "Plugin Error",
-                "ReGlyco cannot run (QtWebEngine/QtWebChannel missing or failed).")
+                "Reglycosylation plugin cannot run (QtWebEngine/QtWebChannel missing or failed).")
          else:
-             print("ReGlyco cannot run: Critical Qt components missing.")
+             print("Reglycosylation plugin cannot run: Critical Qt components missing.")
          return
 
     instance_key = 'html_interface_main'
@@ -545,21 +521,21 @@ def run_plugin_gui():
                      INSTANCES[instance_key].show()
                  else:
                      if window_instance: window_instance.deleteLater() # Clean up failed instance
-                     print("ReGlyco: Window setup failed during initialization.")
+                     print("Reglycosylation plugin: Window setup failed during initialization.")
 
              except Exception as e:
-                 print(f"ReGlyco Error: Failed to create HtmlInterfaceWindow: {e}")
+                 print(f"Reglycosylation plugin Error: Failed to create HtmlInterfaceWindow: {e}")
                  QtWidgets.QMessageBox.critical(None, "Plugin Error",
-                    f"ReGlyco failed to create window:\n{e}")
+                    f"Reglycosylation plugin failed to create window:\n{e}")
         else:
-             print("ReGlyco Error: HtmlInterfaceWindow class not defined (Web components missing).")
+             print("Reglycosylation plugin Error: HtmlInterfaceWindow class not defined (Web components missing).")
              QtWidgets.QMessageBox.critical(None, "Plugin Error",
-                "ReGlyco failed (HtmlInterfaceWindow class missing).")
+                "Reglycosylation plugin failed (HtmlInterfaceWindow class missing).")
 
 # Optional cleanup (might not be called reliably)
 # def __del_plugin__():
 #    instance_key = 'html_interface_main'
 #    if instance_key in INSTANCES:
 #        try: INSTANCES[instance_key].close()
-#        except Exception as e: print(f"ReGlyco: Error during cleanup: {e}")
-#    print("ReGlyco unloaded.")
+#        except Exception as e: print(f"Reglycosylation plugin: Error during cleanup: {e}")
+#    print("Reglycosylation plugin unloaded.")

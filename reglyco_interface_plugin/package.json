@@ -1,5 +1,5 @@
 {
-  "name": "reglyco_interface",
+  "name": "reglycosylation_plugin",
   "dependencies": {
     "sviewer": "github:CopenhagenCenterForGlycomics/sviewer"
   },

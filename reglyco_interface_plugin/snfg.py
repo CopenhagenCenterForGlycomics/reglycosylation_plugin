@@ -443,7 +443,7 @@ def cgo_cube(x, y, z, r, color, x_axis, y_axis, z_axis):
 
 # --- Main Function ---
 
-def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
+def render_snfg(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
     """
     Render glycans using the 3D-SNFG color and shape scheme with updated orientation.
 
@@ -504,13 +504,13 @@ def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
     if not safe_selection_name: safe_selection_name = "selection" # Handle empty/weird selections
 
     full_selection = f"({selection}) and resn {target_resn}"
-    print(f"Applying SNFGify to selection: '{full_selection}'")
+    print(f"Applying render_snfg to selection: '{full_selection}'")
 
     # Get orientation data for the selected residues
     orientation_data = get_residue_orientation(full_selection)
 
     if not orientation_data:
-        print("[SNFGify] No matching residues found or orientation calculation failed for all.")
+        print("[render_snfg] No matching residues found or orientation calculation failed for all.")
         return
 
     cgo_objects = []
@@ -521,7 +521,7 @@ def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
     axis_length = shape_scale_factor * 1.5 # Length relative to shape size
     axis_radius = scale * 0.1          # Radius for cylinder representation
 
-    print(f"[SNFGify] Processing {len(orientation_data)} residues...")
+    print(f"[render_snfg] Processing {len(orientation_data)} residues...")
     processed_count = 0
     for (resn, center, x_axis, y_axis, z_axis) in orientation_data:
         if resn not in snfg_shapes:
@@ -591,43 +591,43 @@ def snfgify(selection='all', transparency=0.3, scale=0.5, debug_axes=False):
 
 
     if not cgo_objects:
-         print("[SNFGify] No valid CGO objects were generated for the main shapes.")
+         print("[render_snfg] No valid CGO objects were generated for the main shapes.")
          # Still load debug axes if requested and generated
          if debug_axes and debug_cgo_objects:
             cgo_name = f"snfg_{safe_selection_name}" # Need a base name even if main obj is empty
             debug_cgo_name = f"{cgo_name}_axes"
             cmd.load_cgo(debug_cgo_objects, debug_cgo_name)
-            print(f"[SNFGify] Debug axes loaded as CGO object: {debug_cgo_name}")
+            print(f"[render_snfg] Debug axes loaded as CGO object: {debug_cgo_name}")
          return
 
     # Load the combined CGO object for shapes
     cgo_name = f"snfg_{safe_selection_name}"
     cmd.delete(cgo_name) # Delete existing object with the same name first
     cmd.load_cgo(cgo_objects, cgo_name)
-    print(f"[SNFGify] Processed {processed_count} residues. Main CGO object loaded as: {cgo_name}")
+    print(f"[render_snfg] Processed {processed_count} residues. Main CGO object loaded as: {cgo_name}")
 
     # --- Load Debug Axes CGO (if requested) ---
     if debug_axes and debug_cgo_objects:
         debug_cgo_name = f"{cgo_name}_axes"
         cmd.delete(debug_cgo_name) # Delete existing debug axes object first
         cmd.load_cgo(debug_cgo_objects, debug_cgo_name)
-        print(f"[SNFGify] Debug axes loaded as CGO object: {debug_cgo_name}")
+        print(f"[render_snfg] Debug axes loaded as CGO object: {debug_cgo_name}")
     elif debug_axes:
-        print("[SNFGify] Debug axes requested, but none were generated (check for errors above).")
+        print("[render_snfg] Debug axes requested, but none were generated (check for errors above).")
 
 
     # Note on transparency: CGO objects loaded this way generally don't respect cmd.set('cgo_transparency').
     # True transparency needs setting ALPHA within the CGO definition itself, which adds complexity.
-    print(f"[SNFGify] Note: Transparency setting ({transparency}) is not directly applied to CGO shapes.")
+    print(f"[render_snfg] Note: Transparency setting ({transparency}) is not directly applied to CGO shapes.")
 
 
 # Register in PyMOL
-cmd.extend("snfgify", snfgify)
+cmd.extend("render_snfg", render_snfg)
 
 # Example Usage (run in PyMOL console after loading this script):
 # fetch 1rvz, async=0
 # remove solvent
-# snfgify selection=resn NAG+MAN, scale=0.6, debug_axes=True
+# render_snfg selection=resn NAG+MAN, scale=0.6, debug_axes=True
 # show cartoon
 # hide lines, (resn NAG+MAN) # Hide underlying atoms if desired
 # # To hide axes later:

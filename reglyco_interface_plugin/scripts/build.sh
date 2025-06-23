@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euxo pipefail
+
 curl 'https://glyco.me/docs/css/glycosuite.css' > web/glyco_css/glycosuite.css
 curl 'https://glyco.me/docs/css/header.css' > web/glyco_css/header.css
 curl 'https://glyco.me/docs/css/pageheader_common.css' > web/glyco_css/pageheader_common.css
