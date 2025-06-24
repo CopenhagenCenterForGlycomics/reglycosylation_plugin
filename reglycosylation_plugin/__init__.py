@@ -6,8 +6,8 @@ try:
     # PyMOL 2.x specific plugin loading
     import pymol.plugins
     def __init_plugin__(app=None):
-        from . import reglycosylation_interface # Import the main plugin code (relative import)
-        reglycosylation_interface.__init_plugin__(app)
+        from . import reglycosylation_plugin # Import the main plugin code (relative import)
+        reglycosylation_plugin.__init_plugin__(app)
 
     # Optional: Define cleanup if needed (might not be reliably called)
     # def __del_plugin__():
@@ -16,11 +16,11 @@ try:
 
 except ImportError:
     # Fallback or logic for older PyMOL versions if necessary
-    # For simple cases, just importing might be enough if reglycosylation_interface.py
+    # For simple cases, just importing might be enough if reglycosylation_plugin.py
     # directly calls addmenuitemqt on import (less clean).
     # The __init_plugin__ structure is preferred.
-    print("ReGlyco Plugin: Could not use __init_plugin__, attempting direct load (may fail).")
-    from . import reglycosylation_interface
+    print("Reglycosylation Plugin: Could not use __init_plugin__, attempting direct load (may fail).")
+    from . import reglycosylation_plugin
     # If html_interface.py called addmenuitemqt directly at module level:
     # pass
     # If not, you might need to call an init function here. The pattern above is better.

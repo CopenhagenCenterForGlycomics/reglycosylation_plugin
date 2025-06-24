@@ -3,4 +3,4 @@
 filename=${1:-reglycosylation_plugin.zip}
 
 mkdir -p dist
-zip -r "dist/$filename" *.py *.md web
+bsdtar -c -a -f "dist/$filename" -s ",^,reglycosylation_plugin/," *.py *.md web
