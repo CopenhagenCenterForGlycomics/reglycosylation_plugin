@@ -229,7 +229,7 @@ if QT_WEB_AVAILABLE:
             outfile = results['output']
             jobid = results['jobId'][:-11]
             cmd.load(f"https://glycoshape.org/output/{outfile}",f"reglyco_result_{jobid}")
-            snfg.snfgify(f"reglyco_result_{jobid}")
+            snfg.render_snfg(f"reglyco_result_{jobid}")
 
         @QtCore.pyqtSlot(str, result=str)
         def getDataFromPyMol(self, request_type):
