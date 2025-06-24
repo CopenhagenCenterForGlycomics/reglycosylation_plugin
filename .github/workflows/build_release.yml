@@ -1,0 +1,48 @@
+name: 'build_release'
+on:
+  push:
+    tags:
+      - v*
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Check path
+        run: echo $PATH
+      - name: Build
+        run: (cd reglycosylation_plugin; npm install && ./scripts/build.sh)
+      - name: Dist
+        run: (cd reglycosylation_plugin; ./scripts/release.sh reglycosylation_plugin-${{ github.ref_name }}.zip )
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            This release was automatically generated.
+            See the attached `reglycosylation_plugin_${{ github.ref_name }}.zip` for the packaged assets.
+          draft: false
+          prerelease: false
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # URL from the 'Create Release' step
+          asset_path: ./reglycosylation_plugin/dist/reglycosylation_plugin-${{ github.ref_name }}.zip # Path to the file you want to upload
+          asset_name: reglycosylation_plugin-${{ github.ref_name }}.zip # Name of the asset on the release page
+          asset_content_type: application/zip
+
+## act --bind --container-daemon-socket - -P ubuntu-latest=catthehacker/ubuntu:act-latest --container-options "-v /var/run/docker.sock:/var/run/docker.sock"
