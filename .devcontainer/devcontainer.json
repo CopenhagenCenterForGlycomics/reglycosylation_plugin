@@ -9,7 +9,7 @@
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
 
   // Use 'postCreateCommand' to run commands after the container is created.
-  "postCreateCommand": "git config --global safe.directory '*' && git submodule init && git submodule update && git config --global safe.directory '*' && npm install && echo 'shopt -s histappend\nexport PROMPT_COMMAND=\"history -a;$PROMPT_COMMAND\"' >> /root/.bashrc ",
+  "postCreateCommand": "git config --global safe.directory '*' && git submodule init && git submodule update && git config --global safe.directory '*' && cd reglycosylation_plugin && npm install && echo 'shopt -s histappend\nexport PROMPT_COMMAND=\"history -a;$PROMPT_COMMAND\"' >> /root/.bashrc ",
 
   "postStartCommand": "",
 
